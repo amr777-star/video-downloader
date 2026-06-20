@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Downloader — Reels, TikTok, Shorts</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Video Downloader</h1>
+            <p class="subtitle">Скачивай видео из Reels, TikTok и Shorts без водяного знака</p>
+        </header>
+
+        <div class="platforms">
+            <span class="platform-badge tiktok">TikTok</span>
+            <span class="platform-badge instagram">Reels</span>
+            <span class="platform-badge youtube">Shorts</span>
+        </div>
+
+        <form id="download-form">
+            <div class="input-group">
+                <input
+                    type="url"
+                    id="url-input"
+                    placeholder="Вставь ссылку на видео..."
+                    autocomplete="off"
+                    required
+                >
+                <button type="submit" id="submit-btn">
+                    <span class="btn-text">Скачать</span>
+                    <span class="btn-loader" hidden>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                        </svg>
+                    </span>
+                </button>
+            </div>
+        </form>
+
+        <div id="error-message" class="error" hidden></div>
+
+        <div id="result-card" class="result-card" hidden>
+            <div class="result-info">
+                <div class="result-meta">
+                    <span id="result-platform" class="platform-badge"></span>
+                    <span id="result-size" class="meta-text"></span>
+                    <span id="result-duration" class="meta-text"></span>
+                </div>
+                <h3 id="result-title"></h3>
+            </div>
+            <a id="result-download" class="download-btn" download>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Скачать MP4
+            </a>
+        </div>
+
+        <footer>
+            <p>Поддерживаемые платформы: TikTok, Instagram Reels, YouTube Shorts</p>
+        </footer>
+    </div>
+
+    <script>
+        const form = document.getElementById('download-form');
+        const input = document.getElementById('url-input');
+        const submitBtn = document.getElementById('submit-btn');
+        const btnText = submitBtn.querySelector('.btn-text');
+        const btnLoader = submitBtn.querySelector('.btn-loader');
+        const errorEl = document.getElementById('error-message');
+        const resultCard = document.getElementById('result-card');
+
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+
+        function formatDuration(seconds) {
+            const s = parseInt(seconds);
+            if (!s || isNaN(s)) return '';
+            const m = Math.floor(s / 60);
+            const sec = s % 60;
+            return `${m}:${sec.toString().padStart(2, '0')}`;
+        }
+
+        function setLoading(loading) {
+            submitBtn.disabled = loading;
+            btnText.hidden = loading;
+            btnLoader.hidden = !loading;
+            input.disabled = loading;
+        }
+
+        function showError(msg) {
+            errorEl.textContent = msg;
+            errorEl.hidden = false;
+            resultCard.hidden = true;
+        }
+
+        function hideError() {
+            errorEl.hidden = true;
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideError();
+            resultCard.hidden = true;
+
+            const url = input.value.trim();
+            if (!url) return;
+
+            setLoading(true);
+
+            try {
+                const res = await fetch('/api/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url }),
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showError(data.detail || 'Произошла ошибка');
+                    return;
+                }
+
+                const platformEl = document.getElementById('result-platform');
+                platformEl.textContent = data.platform === 'instagram' ? 'Reels'
+                    : data.platform === 'tiktok' ? 'TikTok'
+                    : 'Shorts';
+                platformEl.className = `platform-badge ${data.platform}`;
+
+                document.getElementById('result-title').textContent = data.title || 'Видео';
+                document.getElementById('result-size').textContent = formatBytes(data.size);
+
+                const dur = formatDuration(data.duration);
+                document.getElementById('result-duration').textContent = dur ? `⏱ ${dur}` : '';
+
+                const downloadLink = document.getElementById('result-download');
+                downloadLink.href = data.download_url;
+
+                resultCard.hidden = false;
+            } catch (err) {
+                showError('Сетевая ошибка. Проверь соединение.');
+            } finally {
+                setLoading(false);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+services:
+  video-downloader:
+    build: .
+    ports:
+      - "${PORT:-8000}:${PORT:-8000}"
+    volumes:
+      - ./downloads:/app/downloads
+    environment:
+      - API_KEY=${API_KEY:-}
+      - PORT=${PORT:-8000}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - FILE_TTL=${FILE_TTL:-3600}
+    restart: unless-stopped
